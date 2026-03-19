@@ -47,22 +47,22 @@ impl App {
     fn handle_key_event(&mut self, key_event: KeyEvent) {
         match key_event.code {
             KeyCode::Char('q') => self.exit(),
-            KeyCode::Up => {
+            KeyCode::Up | KeyCode::Char('w') | KeyCode::Char('k') => {
                 if self.cursor_x > 0 {
                     self.cursor_x -= 1
                 }
             }
-            KeyCode::Down => {
+            KeyCode::Down | KeyCode::Char('s') | KeyCode::Char('j') => {
                 if self.cursor_x < (self.sudoku_game.board.len() - 1) as u8 {
                     self.cursor_x += 1
                 }
             }
-            KeyCode::Left => {
+            KeyCode::Left | KeyCode::Char('a') | KeyCode::Char('h') => {
                 if self.cursor_y > 0 {
                     self.cursor_y -= 1
                 }
             }
-            KeyCode::Right => {
+            KeyCode::Right | KeyCode::Char('d') | KeyCode::Char('l') => {
                 if self.cursor_y < (self.sudoku_game.board.len() - 1) as u8 {
                     self.cursor_y += 1
                 }
@@ -72,7 +72,12 @@ impl App {
                     && !self.generated[self.cursor_x as usize][self.cursor_y as usize]
                 {
                     self.sudoku_game.board[self.cursor_x as usize][self.cursor_y as usize] =
-                        c.to_digit(16).unwrap() as u8;
+                        c.to_digit(10).unwrap() as u8;
+                }
+            }
+            KeyCode::Backspace => {
+                if !self.generated[self.cursor_x as usize][self.cursor_y as usize] {
+                    self.sudoku_game.board[self.cursor_x as usize][self.cursor_y as usize] = 0
                 }
             }
             _ => {}
@@ -87,40 +92,46 @@ impl App {
 impl Widget for &App {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let mut sudoku: Text = Default::default();
-        sudoku.push_line(Line::from("+-----+-----+-----+"));
+        sudoku.push_line(Line::from("+---------+---------+---------+"));
         let n = self.sudoku_game.board.len();
         for row_index in 0..n {
-            let mut row = Line::from("| ");
+            let mut row = Line::from("|");
             for col_index in 0..n {
                 if col_index != 0 {
                     if col_index % 3 == 0 {
-                        row.push_span(Span::from(" | "));
+                        row.push_span(Span::from("|"));
                     }
                 }
 
                 let digit = self.sudoku_game.board[row_index][col_index];
+                let ele = format!(" {} ", digit);
                 let mut element = Span::raw("");
 
                 if self.generated[row_index][col_index] == true {
-                    element = Span::styled(digit.to_string(), Style::default().fg(Color::Yellow))
+                    element = Span::styled(ele.clone(), Style::default().fg(Color::Yellow))
                 }
 
                 if self.generated[row_index][col_index] == false
                     && self.sudoku_game.board[row_index][col_index] != 0
                 {
-                    element = Span::styled(digit.to_string(), Style::default().fg(Color::Blue))
+                    element = Span::styled(ele.clone(), Style::default().fg(Color::Blue))
                 }
 
                 if digit == 0 {
-                    element = Span::from(".")
+                    element = Span::from(" . ")
                 };
 
                 if row_index == self.cursor_x as usize && col_index == self.cursor_y as usize {
-                    if digit != 0 {
-                        element =
-                            Span::styled(digit.to_string(), Style::default().bg(Color::DarkGray))
+                    let style;
+                    if self.generated[self.cursor_x as usize][self.cursor_y as usize] {
+                        style = Style::default().fg(Color::Yellow).bg(Color::DarkGray);
                     } else {
-                        element = Span::styled(".", Style::default().bg(Color::DarkGray))
+                        style = Style::default().fg(Color::Blue).bg(Color::DarkGray);
+                    }
+                    if digit != 0 {
+                        element = Span::styled(ele.clone(), style)
+                    } else {
+                        element = Span::styled(" . ", Style::default().bg(Color::DarkGray))
                     }
                 }
 
@@ -128,15 +139,20 @@ impl Widget for &App {
             }
             if row_index != 0 {
                 if row_index % 3 == 0 {
-                    sudoku.push_line(Line::from("+-----+-----+-----+"));
+                    sudoku.push_line(Line::from("+---------+---------+---------+"));
                 }
             }
-            row.push_span(Span::from(" |"));
+            row.push_span(Span::from("|"));
             sudoku.push_line(row);
         }
-        sudoku.push_line(Line::from("+-----+-----+-----+"));
+        sudoku.push_line(Line::from("+---------+---------+---------+"));
 
-        Paragraph::new(sudoku).centered().render(area, buf);
+        let rect = area.centered(
+            ratatui::layout::Constraint::Length(31),
+            ratatui::layout::Constraint::Length(13),
+        );
+
+        Paragraph::new(sudoku).centered().render(rect, buf);
     }
 }
 
