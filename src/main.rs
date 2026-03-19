@@ -1,7 +1,10 @@
 mod board;
 
 fn main() -> color_eyre::Result<()> {
-    let mut sudoku_game = board::Sudoku { board: [[0; 9]; 9] };
+    let mut sudoku_game = board::Sudoku {
+        board: [[0; 9]; 9],
+        solved_board: [[0; 9]; 9],
+    };
     sudoku_game.generator();
     let mut allowed = [[false; 9]; 9];
     let n = sudoku_game.board.len();
@@ -18,6 +21,8 @@ fn main() -> color_eyre::Result<()> {
         cursor_y: 0,
         should_quit: false,
         generated: allowed,
+        is_won: false,
+        popup_selected: 0,
     };
     color_eyre::install()?;
     ratatui::run(|mut terminal| game.run(&mut terminal))?;

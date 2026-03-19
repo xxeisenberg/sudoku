@@ -6,11 +6,12 @@ use ratatui::{
     layout::Rect,
     style::{Color, Style},
     text::{Line, Span, Text},
-    widgets::{Paragraph, Widget},
+    widgets::{Block, Clear, Paragraph, Widget},
 };
 
 pub struct Sudoku {
     pub board: [[u8; 9]; 9],
+    pub solved_board: [[u8; 9]; 9],
 }
 
 pub struct App {
@@ -19,6 +20,8 @@ pub struct App {
     pub cursor_y: u8,
     pub generated: [[bool; 9]; 9],
     pub should_quit: bool,
+    pub is_won: bool,
+    pub popup_selected: u8,
 }
 
 impl App {
@@ -45,47 +48,108 @@ impl App {
     }
 
     fn handle_key_event(&mut self, key_event: KeyEvent) {
-        match key_event.code {
-            KeyCode::Char('q') => self.exit(),
-            KeyCode::Up | KeyCode::Char('w') | KeyCode::Char('k') => {
-                if self.cursor_x > 0 {
-                    self.cursor_x -= 1
+        if self.is_won {
+            match key_event.code {
+                KeyCode::Left => {
+                    if self.popup_selected == 0 {
+                        self.popup_selected = 1;
+                    } else {
+                        self.popup_selected = 0;
+                    }
                 }
-            }
-            KeyCode::Down | KeyCode::Char('s') | KeyCode::Char('j') => {
-                if self.cursor_x < (self.sudoku_game.board.len() - 1) as u8 {
-                    self.cursor_x += 1
+                KeyCode::Right => {
+                    if self.popup_selected == 0 {
+                        self.popup_selected = 1;
+                    } else {
+                        self.popup_selected = 0;
+                    }
                 }
-            }
-            KeyCode::Left | KeyCode::Char('a') | KeyCode::Char('h') => {
-                if self.cursor_y > 0 {
-                    self.cursor_y -= 1
+                KeyCode::Enter => {
+                    if self.popup_selected == 0 {
+                        self.reset_game();
+                    } else {
+                        self.exit();
+                    }
                 }
+                _ => {}
             }
-            KeyCode::Right | KeyCode::Char('d') | KeyCode::Char('l') => {
-                if self.cursor_y < (self.sudoku_game.board.len() - 1) as u8 {
-                    self.cursor_y += 1
+        } else {
+            match key_event.code {
+                KeyCode::Char('q') => self.exit(),
+                KeyCode::Up | KeyCode::Char('w') | KeyCode::Char('k') => {
+                    if self.cursor_x > 0 {
+                        self.cursor_x -= 1
+                    }
                 }
-            }
-            KeyCode::Char(c) => {
-                if ('1'..='9').contains(&c)
-                    && !self.generated[self.cursor_x as usize][self.cursor_y as usize]
-                {
-                    self.sudoku_game.board[self.cursor_x as usize][self.cursor_y as usize] =
-                        c.to_digit(10).unwrap() as u8;
+                KeyCode::Down | KeyCode::Char('s') | KeyCode::Char('j') => {
+                    if self.cursor_x < (self.sudoku_game.board.len() - 1) as u8 {
+                        self.cursor_x += 1
+                    }
                 }
-            }
-            KeyCode::Backspace => {
-                if !self.generated[self.cursor_x as usize][self.cursor_y as usize] {
-                    self.sudoku_game.board[self.cursor_x as usize][self.cursor_y as usize] = 0
+                KeyCode::Left | KeyCode::Char('a') | KeyCode::Char('h') => {
+                    if self.cursor_y > 0 {
+                        self.cursor_y -= 1
+                    }
                 }
+                KeyCode::Right | KeyCode::Char('d') | KeyCode::Char('l') => {
+                    if self.cursor_y < (self.sudoku_game.board.len() - 1) as u8 {
+                        self.cursor_y += 1
+                    }
+                }
+                KeyCode::Char(c) => {
+                    if ('1'..='9').contains(&c)
+                        && !self.generated[self.cursor_x as usize][self.cursor_y as usize]
+                    {
+                        self.sudoku_game.board[self.cursor_x as usize][self.cursor_y as usize] =
+                            c.to_digit(10).unwrap() as u8;
+                        self.check_win_condition();
+                    }
+                }
+                KeyCode::Backspace => {
+                    if !self.generated[self.cursor_x as usize][self.cursor_y as usize] {
+                        self.sudoku_game.board[self.cursor_x as usize][self.cursor_y as usize] = 0
+                    }
+                }
+                _ => {}
             }
-            _ => {}
         }
+    }
+
+    fn reset_game(&mut self) {
+        self.sudoku_game.board = [[0; 9]; 9];
+        self.sudoku_game.generator();
+        self.generated = [[false; 9]; 9];
+        let n = self.sudoku_game.board.len();
+        for row_index in 0..n {
+            for col_index in 0..n {
+                if self.sudoku_game.board[row_index][col_index] != 0 {
+                    self.generated[row_index][col_index] = true;
+                }
+            }
+        }
+        self.cursor_x = 0;
+        self.cursor_y = 0;
+        self.popup_selected = 0;
+        self.is_won = false;
     }
 
     fn exit(&mut self) {
         self.should_quit = true;
+    }
+
+    fn check_win_condition(&mut self) {
+        let n = self.sudoku_game.board.len();
+        let mut correct = true;
+        for i in 0..n {
+            for j in 0..n {
+                if self.sudoku_game.board[i][j] != self.sudoku_game.solved_board[i][j] {
+                    correct = false;
+                }
+            }
+        }
+        if correct {
+            self.is_won = true;
+        }
     }
 }
 
@@ -153,6 +217,38 @@ impl Widget for &App {
         );
 
         Paragraph::new(sudoku).centered().render(rect, buf);
+
+        if self.is_won {
+            let pop_rec = area.centered(
+                ratatui::layout::Constraint::Length(31),
+                ratatui::layout::Constraint::Length(5),
+            );
+            let restart_style = if self.popup_selected == 0 {
+                Style::default().fg(Color::LightBlue)
+            } else {
+                Style::default()
+            };
+
+            let quit_style = if self.popup_selected == 1 {
+                Style::default().fg(Color::LightBlue)
+            } else {
+                Style::default()
+            };
+            let bottom_line = Line::from(vec![
+                Span::styled("[ Restart ]", restart_style),
+                Span::styled("[ Quit ]", quit_style),
+            ]);
+
+            Clear.render(pop_rec, buf);
+            Paragraph::new("YOU WIN!!!")
+                .block(
+                    Block::bordered()
+                        .title("CONGRATS!")
+                        .title_bottom(bottom_line.centered()),
+                )
+                .centered()
+                .render(pop_rec, buf);
+        }
     }
 }
 
@@ -295,9 +391,11 @@ impl Sudoku {
 
         self.solve();
 
+        self.solved_board = self.board;
+
         // Removing numbers
 
-        let mut target = 30;
+        let mut target = 1;
         while target > 0 {
             let row = rng.random_range(0..9);
             let col = rng.random_range(0..9);
