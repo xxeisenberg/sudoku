@@ -205,6 +205,33 @@ impl App {
 impl Widget for &App {
     fn render(self, area: Rect, buf: &mut Buffer) {
         if self.game_state == GameState::Menu {
+            let title_text = vec![
+                Line::from(Span::styled(
+                    " ____  _   _ ____   ___  _  ___   _ ",
+                    Style::default().fg(Color::Cyan),
+                )),
+                Line::from(Span::styled(
+                    "/ ___|| | | |  _ \\ / _ \\| |/ / | | |",
+                    Style::default().fg(Color::Cyan),
+                )),
+                Line::from(Span::styled(
+                    "\\___ \\| | | | | | | | | | ' /| | | |",
+                    Style::default().fg(Color::Cyan),
+                )),
+                Line::from(Span::styled(
+                    " ___) | |_| | |_| | |_| | . \\| |_| |",
+                    Style::default().fg(Color::Cyan),
+                )),
+                Line::from(Span::styled(
+                    "|____/ \\___/|____/ \\___/|_|\\_\\\\___/ ",
+                    Style::default().fg(Color::Cyan),
+                )),
+                Line::from(Span::styled(
+                    "                        ~xeisenberg ",
+                    Style::default().fg(Color::DarkGray),
+                )),
+            ];
+
             let custom_label = format!("Custom ({} missing)  <-/->", self.missing_vals);
             let raw_items = vec![
                 "Easy (30 missing)",
@@ -229,12 +256,24 @@ impl Widget for &App {
                 .block(Block::bordered().title(" SELECT DIFFICULTY "))
                 .style(Color::White);
 
-            let menu_rect = area.centered(
-                ratatui::layout::Constraint::Length(35),
-                ratatui::layout::Constraint::Length(6),
+            let menu_area = area.centered(
+                ratatui::layout::Constraint::Length(38),
+                ratatui::layout::Constraint::Length(14),
             );
 
-            list.render(menu_rect, buf);
+            let menu_layout = Layout::default()
+                .direction(ratatui::layout::Direction::Vertical)
+                .constraints(vec![
+                    Constraint::Length(6),
+                    Constraint::Length(1),
+                    Constraint::Length(7),
+                ])
+                .split(menu_area);
+
+            Paragraph::new(title_text)
+                .centered()
+                .render(menu_layout[0], buf);
+            list.render(menu_layout[2], buf);
 
             return;
         }
