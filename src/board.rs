@@ -233,7 +233,7 @@ impl Widget for &App {
             ];
 
             let custom_label = format!("Custom ({} missing)  <-/->", self.missing_vals);
-            let raw_items = vec![
+            let raw_items = [
                 "Easy (30 missing)",
                 "Medium (40 missing)",
                 "Hard (50 missing)",
@@ -289,21 +289,19 @@ impl Widget for &App {
         for row_index in 0..n {
             let mut row = Line::from("|");
             for col_index in 0..n {
-                if col_index != 0 {
-                    if col_index % 3 == 0 {
-                        row.push_span(Span::from("|"));
-                    }
+                if col_index != 0 && col_index % 3 == 0 {
+                    row.push_span(Span::from("|"));
                 }
 
                 let digit = self.sudoku_game.board[row_index][col_index];
                 let ele = format!(" {} ", digit);
                 let mut element = Span::raw("");
 
-                if self.generated[row_index][col_index] == true {
+                if self.generated[row_index][col_index] {
                     element = Span::styled(ele.clone(), Style::default().fg(Color::Yellow))
                 }
 
-                if self.generated[row_index][col_index] == false
+                if !self.generated[row_index][col_index]
                     && self.sudoku_game.board[row_index][col_index] != 0
                 {
                     element = Span::styled(ele.clone(), Style::default().fg(Color::Blue))
@@ -314,12 +312,11 @@ impl Widget for &App {
                 };
 
                 if row_index == self.cursor_x as usize && col_index == self.cursor_y as usize {
-                    let style;
-                    if self.generated[self.cursor_x as usize][self.cursor_y as usize] {
-                        style = Style::default().fg(Color::Yellow).bg(Color::DarkGray);
+                    let style = if self.generated[self.cursor_x as usize][self.cursor_y as usize] {
+                        Style::default().fg(Color::Yellow).bg(Color::DarkGray)
                     } else {
-                        style = Style::default().fg(Color::Blue).bg(Color::DarkGray);
-                    }
+                        Style::default().fg(Color::Blue).bg(Color::DarkGray)
+                    };
                     if digit != 0 {
                         element = Span::styled(ele.clone(), style)
                     } else {
@@ -329,10 +326,8 @@ impl Widget for &App {
 
                 row.push_span(element);
             }
-            if row_index != 0 {
-                if row_index % 3 == 0 {
-                    sudoku.push_line(Line::from("+---------+---------+---------+"));
-                }
+            if row_index != 0 && row_index % 3 == 0 {
+                sudoku.push_line(Line::from("+---------+---------+---------+"));
             }
             row.push_span(Span::from("|"));
             sudoku.push_line(row);
@@ -388,31 +383,6 @@ impl Widget for &App {
 }
 
 impl Sudoku {
-    pub fn print(&self) {
-        println!("+-------+-------+-------+");
-        for row in 0..9 {
-            print!("| ");
-            for col in 0..9 {
-                let val = self.board[row][col];
-
-                if val == 0 {
-                    print!(". ");
-                } else {
-                    print!("{} ", val);
-                }
-
-                if (col + 1) % 3 == 0 {
-                    print!("| ");
-                }
-            }
-            println!();
-
-            if (row + 1) % 3 == 0 {
-                println!("+-------+-------+-------+");
-            }
-        }
-    }
-
     pub fn is_safe(&self, row: u8, col: u8, number: u8) -> bool {
         let column_check = self
             .board
@@ -422,7 +392,7 @@ impl Sudoku {
         let rows_check = self.board[row as usize].iter().any(|x| x == &number);
         let check = !column_check && !rows_check;
         let res: bool = self.threexthree(row, col, number);
-        if check && res { true } else { false }
+        check && res
     }
 
     fn threexthree(&self, row: u8, col: u8, number: u8) -> bool {
@@ -487,7 +457,7 @@ impl Sudoku {
             }
         }
 
-        return 1;
+        1
     }
 
     pub fn generator(&mut self, missing_values: u8) {

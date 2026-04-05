@@ -31,7 +31,7 @@ fn main() -> color_eyre::Result<()> {
     };
 
     color_eyre::install()?;
-    ratatui::run(|mut terminal| game.run(&mut terminal))?;
+    ratatui::run(|terminal| game.run(terminal))?;
 
     Ok(())
 }
