@@ -2,6 +2,8 @@ name: Cross-Platform Build
 
 on:
   push:
+    tags:
+      - "v*.*"
     branches: ["main"]
   workflow_dispatch:
 
@@ -10,6 +12,7 @@ jobs:
     name: Build on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
 
@@ -21,18 +24,40 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Build Release
-        run: cargo build --release
+        run: cargo build --release --locked
 
-      - name: Upload Binary (Windows)
-        if: matrix.os == 'windows-latest'
-        uses: actions/upload-artifact@v4
-        with:
-          name: sudoku-windows
-          path: target/release/sudoku.exe
+      - name: Rename binary for release (Windows)
+        if: runner.os == 'Windows'
+        run: mv target/release/sudoku.exe target/release/sudoku-windows.exe
 
-      - name: Upload Binary (Linux & Mac)
-        if: matrix.os != 'windows-latest'
+      - name: Rename binary for release (Unix)
+        if: runner.os != 'Windows'
+        run: mv target/release/sudoku target/release/sudoku-${{ matrix.os }}
+
+      - name: Upload Binary
         uses: actions/upload-artifact@v4
         with:
           name: sudoku-${{ matrix.os }}
-          path: target/release/sudoku
+          path: target/release/sudoku-*
+
+  release:
+    name: Publish GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Publish to GitHub Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          generate_release_notes: true
+          files: dist/*

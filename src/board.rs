@@ -209,7 +209,7 @@ impl App {
             )),
             Line::from(Span::styled(
                 "                        ~xeisenberg ",
-                Style::default().fg(Color::DarkGray),
+                Style::default().fg(Color::Gray),
             )),
         ];
 
@@ -286,7 +286,7 @@ impl App {
                 if !self.generated[row_index][col_index]
                     && self.sudoku_game.board[row_index][col_index] != 0
                 {
-                    element = Span::styled(ele.clone(), Style::default().fg(Color::Blue))
+                    element = Span::styled(ele.clone(), Style::default().fg(Color::Green))
                 }
 
                 if digit == 0 {
@@ -297,7 +297,7 @@ impl App {
                     let style = if self.generated[self.cursor_x][self.cursor_y] {
                         Style::default().fg(Color::Yellow).bg(Color::DarkGray)
                     } else {
-                        Style::default().fg(Color::Blue).bg(Color::DarkGray)
+                        Style::default().fg(Color::Green).bg(Color::DarkGray)
                     };
                     if digit != 0 {
                         element = Span::styled(ele.clone(), style)
@@ -323,7 +323,7 @@ impl App {
 
         Paragraph::new(sudoku).centered().render(rect, buf);
         let controls = "[WASD/Arrows]: Move   [1-9]: Input   [Backspace]: Clear   [Q]: Quit";
-        Paragraph::new(Span::styled(controls, Style::default().fg(Color::Gray)))
+        Paragraph::new(Span::styled(controls, Style::default().fg(Color::White)))
             .centered()
             .render(layout[1], buf);
     }
