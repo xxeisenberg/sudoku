@@ -16,8 +16,8 @@ pub struct Sudoku {
 
 pub struct App {
     pub sudoku_game: Sudoku,
-    pub cursor_x: u8,
-    pub cursor_y: u8,
+    pub cursor_x: usize,
+    pub cursor_y: usize,
     pub generated: [[bool; 9]; 9],
     pub should_quit: bool,
     pub game_state: GameState,
@@ -34,7 +34,7 @@ pub enum GameState {
 }
 
 impl App {
-    pub fn run(&mut self, terminal: &mut DefaultTerminal) -> color_eyre::Result<()> {
+    pub fn run(&mut self, terminal: &mut DefaultTerminal) -> std::io::Result<()> {
         if self.missing_vals == 0 {
             self.missing_vals = 30;
         }
@@ -50,7 +50,7 @@ impl App {
         frame.render_widget(self, frame.area());
     }
 
-    fn handle_events(&mut self) -> color_eyre::Result<()> {
+    fn handle_events(&mut self) -> std::io::Result<()> {
         match event::read()? {
             Event::Key(key_event) if key_event.kind == KeyEventKind::Press => {
                 self.handle_key_event(key_event)
@@ -64,11 +64,7 @@ impl App {
         match self.game_state {
             GameState::Won => match key_event.code {
                 KeyCode::Left | KeyCode::Right => {
-                    if self.popup_selected == 0 {
-                        self.popup_selected = 1;
-                    } else {
-                        self.popup_selected = 0;
-                    }
+                    self.popup_selected ^= 1;
                 }
                 KeyCode::Enter => {
                     if self.popup_selected == 0 {
@@ -89,7 +85,7 @@ impl App {
                     }
                 }
                 KeyCode::Down | KeyCode::Char('s') | KeyCode::Char('j') => {
-                    if self.cursor_x < (self.sudoku_game.board.len() - 1) as u8 {
+                    if self.cursor_x < (self.sudoku_game.board.len() - 1) {
                         self.cursor_x += 1
                     }
                 }
@@ -99,16 +95,13 @@ impl App {
                     }
                 }
                 KeyCode::Right | KeyCode::Char('d') | KeyCode::Char('l') => {
-                    if self.cursor_y < (self.sudoku_game.board.len() - 1) as u8 {
+                    if self.cursor_y < (self.sudoku_game.board.len() - 1) {
                         self.cursor_y += 1
                     }
                 }
                 KeyCode::Char(c) => {
-                    if ('1'..='9').contains(&c)
-                        && !self.generated[self.cursor_x as usize][self.cursor_y as usize]
-                    {
-                        self.sudoku_game.board[self.cursor_x as usize][self.cursor_y as usize] =
-                            c.to_digit(10).unwrap() as u8;
+                    if ('1'..='9').contains(&c) && !self.generated[self.cursor_x][self.cursor_y] {
+                        self.sudoku_game.board[self.cursor_x][self.cursor_y] = c as u8 - b'0';
                         self.check_win_condition();
                     }
                 }
@@ -187,97 +180,86 @@ impl App {
     }
 
     fn check_win_condition(&mut self) {
-        let n = self.sudoku_game.board.len();
-        let mut correct = true;
-        for i in 0..n {
-            for j in 0..n {
-                if self.sudoku_game.board[i][j] != self.sudoku_game.solved_board[i][j] {
-                    correct = false;
-                }
-            }
-        }
-        if correct {
+        if self.sudoku_game.board == self.sudoku_game.solved_board {
             self.game_state = GameState::Won;
         }
     }
-}
 
-impl Widget for &App {
-    fn render(self, area: Rect, buf: &mut Buffer) {
-        if self.game_state == GameState::Menu {
-            let title_text = vec![
-                Line::from(Span::styled(
-                    " ____  _   _ ____   ___  _  ___   _ ",
-                    Style::default().fg(Color::Cyan),
-                )),
-                Line::from(Span::styled(
-                    "/ ___|| | | |  _ \\ / _ \\| |/ / | | |",
-                    Style::default().fg(Color::Cyan),
-                )),
-                Line::from(Span::styled(
-                    "\\___ \\| | | | | | | | | | ' /| | | |",
-                    Style::default().fg(Color::Cyan),
-                )),
-                Line::from(Span::styled(
-                    " ___) | |_| | |_| | |_| | . \\| |_| |",
-                    Style::default().fg(Color::Cyan),
-                )),
-                Line::from(Span::styled(
-                    "|____/ \\___/|____/ \\___/|_|\\_\\\\___/ ",
-                    Style::default().fg(Color::Cyan),
-                )),
-                Line::from(Span::styled(
-                    "                        ~xeisenberg ",
-                    Style::default().fg(Color::DarkGray),
-                )),
-            ];
+    fn render_menu(&self, area: Rect, buf: &mut Buffer) {
+        let title_text = vec![
+            Line::from(Span::styled(
+                " ____  _   _ ____   ___  _  ___   _ ",
+                Style::default().fg(Color::Cyan),
+            )),
+            Line::from(Span::styled(
+                "/ ___|| | | |  _ \\ / _ \\| |/ / | | |",
+                Style::default().fg(Color::Cyan),
+            )),
+            Line::from(Span::styled(
+                "\\___ \\| | | | | | | | | | ' /| | | |",
+                Style::default().fg(Color::Cyan),
+            )),
+            Line::from(Span::styled(
+                " ___) | |_| | |_| | |_| | . \\| |_| |",
+                Style::default().fg(Color::Cyan),
+            )),
+            Line::from(Span::styled(
+                "|____/ \\___/|____/ \\___/|_|\\_\\\\___/ ",
+                Style::default().fg(Color::Cyan),
+            )),
+            Line::from(Span::styled(
+                "                        ~xeisenberg ",
+                Style::default().fg(Color::DarkGray),
+            )),
+        ];
 
-            let custom_label = format!("Custom ({} missing)  <-/->", self.missing_vals);
-            let raw_items = [
-                "Easy (30 missing)",
-                "Medium (40 missing)",
-                "Hard (50 missing)",
-                &custom_label,
-            ];
+        let custom_label = format!("Custom ({} missing)  <-/->", self.missing_vals);
+        let raw_items = [
+            "Easy (30 missing)",
+            "Medium (40 missing)",
+            "Hard (50 missing)",
+            &custom_label,
+        ];
 
-            let mut items = Vec::new();
-            for (i, text) in raw_items.iter().enumerate() {
-                if i == self.menu_cursor as usize {
-                    items.push(
-                        ListItem::new(*text)
-                            .style(Style::default().bg(Color::DarkGray).fg(Color::Yellow)),
-                    );
-                } else {
-                    items.push(ListItem::new(*text).style(Style::default().fg(Color::Gray)));
-                }
+        let mut items = Vec::new();
+        for (i, text) in raw_items.iter().enumerate() {
+            if i == self.menu_cursor as usize {
+                items.push(
+                    ListItem::new(*text)
+                        .style(Style::default().bg(Color::DarkGray).fg(Color::Yellow)),
+                );
+            } else {
+                items.push(ListItem::new(*text).style(Style::default().fg(Color::Gray)));
             }
-
-            let list = List::new(items)
-                .block(Block::bordered().title(" SELECT DIFFICULTY "))
-                .style(Color::White);
-
-            let menu_area = area.centered(
-                ratatui::layout::Constraint::Length(38),
-                ratatui::layout::Constraint::Length(14),
-            );
-
-            let menu_layout = Layout::default()
-                .direction(ratatui::layout::Direction::Vertical)
-                .constraints(vec![
-                    Constraint::Length(6),
-                    Constraint::Length(1),
-                    Constraint::Length(7),
-                ])
-                .split(menu_area);
-
-            Paragraph::new(title_text)
-                .centered()
-                .render(menu_layout[0], buf);
-            list.render(menu_layout[2], buf);
-
-            return;
         }
 
+        let list = List::new(items)
+            .block(Block::bordered().title(" SELECT DIFFICULTY "))
+            .style(Color::White);
+
+        let menu_area = area.centered(
+            ratatui::layout::Constraint::Length(38),
+            ratatui::layout::Constraint::Length(14),
+        );
+
+        let menu_layout = Layout::default()
+            .direction(ratatui::layout::Direction::Vertical)
+            .constraints(vec![
+                Constraint::Length(6),
+                Constraint::Length(1),
+                Constraint::Length(7),
+            ])
+            .split(menu_area);
+
+        Paragraph::new(title_text)
+            .centered()
+            .render(menu_layout[0], buf);
+        list.render(menu_layout[2], buf);
+
+        return;
+    }
+
+    fn render_board(&self, area: Rect, buf: &mut Buffer) {
         let layout = Layout::default()
             .direction(ratatui::layout::Direction::Vertical)
             .constraints(vec![Constraint::Min(0), Constraint::Length(1)])
@@ -311,8 +293,8 @@ impl Widget for &App {
                     element = Span::from(" . ")
                 };
 
-                if row_index == self.cursor_x as usize && col_index == self.cursor_y as usize {
-                    let style = if self.generated[self.cursor_x as usize][self.cursor_y as usize] {
+                if row_index == self.cursor_x && col_index == self.cursor_y {
+                    let style = if self.generated[self.cursor_x][self.cursor_y] {
                         Style::default().fg(Color::Yellow).bg(Color::DarkGray)
                     } else {
                         Style::default().fg(Color::Blue).bg(Color::DarkGray)
@@ -344,40 +326,58 @@ impl Widget for &App {
         Paragraph::new(Span::styled(controls, Style::default().fg(Color::Gray)))
             .centered()
             .render(layout[1], buf);
+    }
 
-        if self.game_state == GameState::Won {
-            let pop_rec = layout[0].centered(
-                ratatui::layout::Constraint::Length(31),
-                ratatui::layout::Constraint::Length(5),
-            );
+    fn render_victory_popup(&self, area: Rect, buf: &mut Buffer) {
+        let layout = Layout::default()
+            .direction(ratatui::layout::Direction::Vertical)
+            .constraints(vec![Constraint::Min(0), Constraint::Length(1)])
+            .split(area);
 
-            let restart_style = if self.popup_selected == 0 {
-                Style::default().fg(Color::Black).bg(Color::White)
-            } else {
-                Style::default()
-            };
+        let pop_rec = layout[0].centered(
+            ratatui::layout::Constraint::Length(31),
+            ratatui::layout::Constraint::Length(5),
+        );
 
-            let quit_style = if self.popup_selected == 1 {
-                Style::default().fg(Color::Black).bg(Color::White)
-            } else {
-                Style::default()
-            };
+        let restart_style = if self.popup_selected == 0 {
+            Style::default().fg(Color::Black).bg(Color::White)
+        } else {
+            Style::default()
+        };
 
-            let bottom_line = Line::from(vec![
-                Span::styled(" [ Restart ] ", restart_style),
-                Span::from("   "),
-                Span::styled(" [ Quit ] ", quit_style),
-            ]);
+        let quit_style = if self.popup_selected == 1 {
+            Style::default().fg(Color::Black).bg(Color::White)
+        } else {
+            Style::default()
+        };
 
-            Clear.render(pop_rec, buf);
-            Paragraph::new("YOU WIN!!!\n\nPerfectly Solved.")
-                .block(
-                    Block::bordered()
-                        .title(" CONGRATS! ")
-                        .title_bottom(bottom_line.centered()),
-                )
-                .centered()
-                .render(pop_rec, buf);
+        let bottom_line = Line::from(vec![
+            Span::styled(" [ Restart ] ", restart_style),
+            Span::from("   "),
+            Span::styled(" [ Quit ] ", quit_style),
+        ]);
+
+        Clear.render(pop_rec, buf);
+        Paragraph::new("YOU WIN!!!\n\nPerfectly Solved.")
+            .block(
+                Block::bordered()
+                    .title(" CONGRATS! ")
+                    .title_bottom(bottom_line.centered()),
+            )
+            .centered()
+            .render(pop_rec, buf);
+    }
+}
+
+impl Widget for &App {
+    fn render(self, area: Rect, buf: &mut Buffer) {
+        match self.game_state {
+            GameState::Menu => self.render_menu(area, buf),
+            GameState::Playing => self.render_board(area, buf),
+            GameState::Won => {
+                self.render_board(area, buf);
+                self.render_victory_popup(area, buf);
+            }
         }
     }
 }
@@ -504,15 +504,15 @@ impl Sudoku {
         while target > 0 {
             let row = rng.random_range(0..9);
             let col = rng.random_range(0..9);
-            let n = self.board[row as usize][col as usize];
+            let n = self.board[row][col];
             if n == 0 {
                 continue;
             } else {
-                self.board[row as usize][col as usize] = 0;
+                self.board[row][col] = 0;
                 if self.count_solutions() == 1 {
                     target -= 1;
                 } else {
-                    self.board[row as usize][col as usize] = n;
+                    self.board[row][col] = n;
                     continue;
                 }
             }

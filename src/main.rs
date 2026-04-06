@@ -1,6 +1,6 @@
 mod board;
 
-fn main() -> color_eyre::Result<()> {
+fn main() -> std::io::Result<()> {
     let mut sudoku_game = board::Sudoku {
         board: [[0; 9]; 9],
         solved_board: [[0; 9]; 9],
@@ -30,7 +30,6 @@ fn main() -> color_eyre::Result<()> {
         missing_vals: 30,
     };
 
-    color_eyre::install()?;
     ratatui::run(|terminal| game.run(terminal))?;
 
     Ok(())
